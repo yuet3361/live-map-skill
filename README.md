@@ -1,98 +1,88 @@
 # Live map
 
-**Align with your AI on a complex plan before it builds anything — on a live, clickable map instead of a long spec.**
+**动手之前，先在一张会动的多层地图上和 AI 对齐。不用读长文档，也不用一题一题回答。**
 
-A skill for [Claude Code](https://claude.com/claude-code) and other agents that read `SKILL.md`.
+适用于 [Claude Code](https://claude.com/claude-code)，以及其他会读 `SKILL.md` 的 agent。
 
-![Live map demo: overview, one level down, an example, zoom, and a compare view](docs/demo.gif)
+![Live map 演示：总览、进入下一层、放大、看例子、看连接](docs/demo.gif)
 
-## Why
+[English](#english)
 
-Even the strongest models miss details when a task has many parts and levels. The usual ways to align are flat:
+## 为什么要用
 
-| Usual way | What goes wrong |
+东西一复杂（很多部分、很多层），模型再强也会漏细节。常见的对齐方式都太扁平：
+
+| 常见做法 | 问题在哪 |
 |---|---|
-| A long spec in Markdown | Few people read it closely. Details slip. |
-| Question-by-question interview ("grill me") | You see one question at a time, never the whole structure. |
-| Just write a long prompt | Fine if you already know every detail. Usually you don't yet. |
+| 写一份长长的 md | 没人会细看，细节就漏了。 |
+| 一问一答（grill-me） | 一次只看到一题，看不到整体结构。 |
+| 直接写一段长 prompt | 前提是你已经想清楚每个细节，但通常还没有。 |
 
-The agent then builds the wrong thing, and you pay it back later.
+结果 agent 做出来的东西不对，后面就要还债。
 
-## How it works
+## 怎么运作
 
-1. **The AI draws the plan as a tree** in your browser. One level per screen, short names, one example per node.
-2. **You read it like a board.** Click a name to go down a level. Click **⋯** for an example. Drag to move, pinch or Ctrl + scroll to zoom.
-3. **You discuss in chat.** The AI edits the map and the page updates within a second, without losing your place.
-4. **Only you decide.** Every node starts as **Draft**. It becomes **Decided** only when you say yes in chat.
-5. **The AI writes `BRIEF.md`** from what you decided, with what is still open listed separately. That is the long prompt for the build, and every line of it is yours.
+1. **AI 把计划画成一棵树**，在浏览器打开。每个画面只有一层，名字短，每格一个例子。
+2. **你像看白板一样看。** 点名字进入下一层，点 **⋯** 看例子。拖动可以移动，双指或 Ctrl + 滚轮可以缩放。
+3. **你在对话里讨论。** AI 改地图，页面一秒内自动更新，停在你正在看的位置。
+4. **只有你能拍板。** 每格一开始都是「草稿」。你在对话里点头，才会变成「已定」。
+5. **AI 写出 `BRIEF.md`。** 只把你定了的部分写成要求，没定的另外列出。这就是交给 agent 去做的那段长 prompt，而且每一句都是你定的。
 
-## Install
+## 安装
 
 ```bash
 git clone https://github.com/yuet3361/live-map-skill
 cp -R live-map-skill/live-map ~/.claude/skills/
 ```
 
-For other agents, copy the `live-map` folder to wherever they load skills from.
+其他 agent：把 `live-map` 文件夹复制到它读取 skill 的位置。
 
-Needs `python3` (local server), `node` (map checker) and a browser. No packages to install.
+需要 `python3`（本机预览）、`node`（检查地图）和一个浏览器。不用装任何依赖。
 
-## Use
+## 使用
 
-Ask your agent, for example:
+直接跟 agent 说，例如：
 
-> Plan the new billing system with me on a live map before you write any code.
+> 先用 live map 跟我对齐新的付款流程，再写代码。
 
-> 先用 live map 跟我对齐，再动手。
+agent 会运行 `scripts/new-map.sh <项目>`：把地图复制到 `<项目>/docs/live-map/`，在本机找一个空的端口打开，并自动开浏览器。然后一部分一部分跟你过。
 
-The agent starts the map with `scripts/new-map.sh <project>`. It copies the map into `<project>/docs/live-map/`, serves it on a free local port and opens your browser. Then it goes through the plan part by part with you.
-
-Try the sample map by hand:
+想先自己看看示例地图：
 
 ```bash
 python3 live-map/template/serve.py
 ```
 
-## What the map shows
+## 地图上有什么
 
-- **Badges:** Decided, Draft, Researched, Key, Later, Just changed, Now.
-- **Arrows with words** ("then", "so we need") for order, and a **foundation band** (↑) for what holds the rest up.
-- **Number badges** for links between parts in different branches.
-- **"How others do it" vs "ours now"** boxes when the AI has researched a part.
-- **"Changed while we talked"** boxes, so you see what moved and why.
+- **标签：** 已定、草稿、已研究、重点、之后、刚改、目前。
+- **带字的箭头**（「然后」「所以要」）表示先后，**底部的地基条**（↑）表示靠什么撑住。
+- **数字角标：** 不同分支之间有关联的格，点开可以跳过去。
+- **「别人怎么做」对比「我们现在」**：AI 研究过的部分会并排显示。
+- **「讨论时改了」**：哪里改了、原本是什么，一眼看到。
 
-Interface languages: English, 繁體中文, 简体中文 (set `lang` in `data.js`).
+界面语言：简体中文、繁體中文、English（在 `data.js` 设 `lang`）。
 
-## What is inside
+## 里面有什么
 
-| Path | What |
+| 路径 | 内容 |
 |---|---|
-| `live-map/SKILL.md` | The method the agent follows |
-| `live-map/template/` | The map page. The agent edits only `data.js`. No build step, no dependencies. |
-| `live-map/reference/data-format.md` | Every `data.js` field |
-| `live-map/scripts/new-map.sh` | Starts a new map in a project |
-| `live-map/scripts/check.js` | Finds broken links, bad indexes and crowded levels |
+| `live-map/SKILL.md` | agent 照着做的方法 |
+| `live-map/template/` | 地图页面。agent 只改 `data.js`，不用编译，没有依赖。 |
+| `live-map/reference/data-format.md` | `data.js` 每个字段的说明 |
+| `live-map/scripts/new-map.sh` | 在项目里开一张新地图 |
+| `live-map/scripts/check.js` | 找出断掉的连接、错的编号和太挤的层 |
 
-## Privacy
+## 隐私
 
-The server listens on `127.0.0.1` only. Nothing is uploaded. The page loads fonts from Google Fonts.
+预览服务只在本机 `127.0.0.1` 运行，不会上传任何东西。页面会从 Google Fonts 载入字体。
 
----
+## English
 
-## 中文说明
+A skill that aligns you and your AI agent on a complex plan before it builds anything. The agent draws the plan as a live, clickable, multi-level map in your browser. You read it like a board (drag, zoom), decide part by part in chat, and the map updates within a second. Only you can mark a part as decided. At the end, the agent writes `BRIEF.md` from what you decided: the long prompt for the build.
 
-复杂的东西，模型再强也会漏细节。长长的 md 没人细看；一问一答式的 grill-me 只看到一题，看不到整体结构。
+Install: copy the `live-map` folder to `~/.claude/skills/`. Then ask your agent: "Plan this with me on a live map before you write code." Set `lang: 'en'` in `data.js` for English labels.
 
-这个 skill 让 AI 先把计划画成**即时、可点开的多层地图**：
-
-- 每个画面只有一层，名字短，点名字进下一层；点 **⋯** 看一个短例子。
-- 像一块白板：拖动可移动，双指或 Ctrl + 滚轮可缩放。
-- 标签分「已定／草稿／已研究／之后」。只有你在对话里点头，才会变「已定」。
-- 你在对话里讲，AI 改地图，浏览器一秒内自动更新，停在你正在看的位置。
-- 对齐完，AI 只用你定了的部分写出 `BRIEF.md`，就是交给 agent 一次做完的那段长 prompt。
-
-安装：把 `live-map` 文件夹复制到 `~/.claude/skills/`，然后跟 agent 说：「先用 live map 跟我对齐再动手。」
-
-## License
+## 许可
 
 [MIT](LICENSE)
