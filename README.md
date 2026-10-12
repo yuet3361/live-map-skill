@@ -4,7 +4,7 @@
 
 适用于 [Claude Code](https://claude.com/claude-code)，以及其他会读 `SKILL.md` 的 agent。
 
-![Live map 演示：总览、进入下一层、放大、看例子、看连接](docs/demo.gif)
+![Live map 演示：总览、进入下一层、放大、看例子、看连接](docs/demo-zh.gif)
 
 [English](#english)
 
