@@ -1,0 +1,471 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Live map</title>
+<script src="./data.js"></script>
+<script src="./support.js"></script>
+<script src="./live.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;600&amp;family=Noto+Sans+TC:wght@400;500;600&amp;display=swap">
+<style>
+html,body{margin:0;background:#0b0b0c;overflow:hidden}
+x-dc{display:block;position:absolute;left:0;top:0;width:1440px;height:900px;transform-origin:0 0}
+button{font:inherit;-webkit-tap-highlight-color:transparent}
+button:focus-visible{outline:2px solid #ffffff;outline-offset:3px}
+.scroll::-webkit-scrollbar{display:none}
+.frow{display:flex;align-items:center;gap:14px;width:100%;border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.05);border-radius:18px;padding:12px 14px;text-align:left;color:#f5f5f7;cursor:pointer}
+.fst{display:inline-block;font-size:13px;font-weight:600;border-radius:999px;padding:2px 10px;margin-top:4px;background:rgba(255,255,255,.1);color:#c7c7cc}
+.cmpl{position:absolute;right:calc(100% + 28px);top:50%;transform:translateY(-50%)}
+.cmpr{position:absolute;left:calc(100% + 28px);top:50%;transform:translateY(-50%)}
+.cmpc{width:330px;display:flex;flex-direction:column;gap:4px;padding:12px 18px;border-radius:22px;background:rgba(26,22,20,.62);-webkit-backdrop-filter:blur(22px);backdrop-filter:blur(22px);border:1px solid rgba(255,255,255,.16)}
+.cmpk{display:inline-flex;align-items:center;gap:8px;font-size:13px;font-weight:600;color:#a1a1a6}
+.cmpk i{width:10px;height:10px;border-radius:50%;background:#8e8e93}
+.cmpv{font-size:15px;line-height:1.45;color:#f5f5f7}
+.cmpc.ok .cmpk i{background:#30d158}.cmpc.mid .cmpk i{background:#ffb340}.cmpc.bad .cmpk i{background:#ff453a}
+.cmpc.ok{border-color:rgba(48,209,88,.45)}.cmpc.mid{border-color:rgba(255,179,64,.45)}.cmpc.bad{border-color:rgba(255,69,58,.5)}
+.lkc{position:absolute;bottom:-11px;right:-8px;min-width:26px;height:22px;border-radius:999px;border:1.5px solid rgba(255,255,255,.3);background:#2a2624;color:#f5f5f7;font-size:12px;font-weight:700;padding:0 7px;cursor:pointer;z-index:3}
+.lkc.zero{color:#ff9b93;border-color:rgba(255,105,97,.6)}
+</style>
+</helmet>
+<div style="{{ui.page}}">
+
+  <div style="display: flex; align-items: flex-end; justify-content: space-between; gap: 32px">
+    <div style="display: flex; flex-direction: column; gap: 8px">
+      <h1 style="{{ui.title}}">{{mapTitle}}</h1>
+      <p style="{{ui.sub}}">{{mapSub}}</p>
+    </div>
+    <div style="{{ui.legend}}">
+      <sc-for list="{{legend}}" as="l">
+        <span style="display: inline-flex; align-items: center; gap: 8px"><span style="{{l.dot}}"></span>{{l.t}}</span>
+      </sc-for>
+    </div>
+  </div>
+
+  <div style="display: flex; align-items: center; gap: 10px">
+    <button onClick="{{back}}" aria-label="{{L.back}}" style="{{backStyle}}">
+      <svg width="16" height="16" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 2 4 7l5 5"></path></svg>
+    </button>
+    <sc-for list="{{crumbs}}" as="c">
+      <button onClick="{{c.go}}" style="{{c.style}}">{{c.label}}</button>
+    </sc-for>
+  </div>
+
+  <div style="{{ui.stage}}">
+    <div id="vp" style="{{vpStyle}}"><div id="board" style="{{boardStyle}}">
+      <div id="col" style="display: flex; flex-direction: column; align-items: center; padding: 14px 32px 18px">
+
+        <sc-if value="{{hasRootRole}}"><div style="{{ui.roleWrap}}"><span style="{{rootRoleDot}}"></span>{{L.viewing}}</div></sc-if>
+        <div style="position: relative; flex: none">
+        <div style="{{rootStyle}}">
+          <button onClick="{{rootMore}}" style="{{rootNameStyle}}">{{rootLabel}}</button>
+          <button onClick="{{rootMore}}" aria-label="{{L.more}}" style="{{rootMoreStyle}}">⋯</button>
+        </div>
+        <sc-if value="{{hasCmp}}">
+          <div class="cmpc cmpl"><span class="cmpk">{{L.cmpThem}}</span><span class="cmpv">{{cmp.them}}</span></div>
+          <div class="cmpc cmpr {{cmp.st}}"><span class="cmpk"><i></i>{{L.cmpUs}} · {{cmp.stT}}</span><span class="cmpv">{{cmp.us}}</span></div>
+        </sc-if>
+        <sc-for list="{{prin}}" as="k">
+          <div style="position: absolute; left: calc(100% + 18px); top: 50%; transform: translateY(-50%); display: flex; align-items: center; gap: 12px; white-space: nowrap">
+            <span style="{{ui.rel}}">{{L.principle}}</span>
+              <div style="{{k.pillStyle}}">
+                <sc-if value="{{k.hasBadge}}"><span style="{{k.badgeStyle}}">{{k.badge}}</span></sc-if>
+                <span style="{{k.dotStyle}}"></span>
+                <button onClick="{{k.onName}}" style="{{k.nameStyle}}">{{k.label}}<span style="{{k.chevStyle}}">{{k.more}}</span></button>
+                <button onClick="{{k.onMore}}" aria-label="{{L.more}}" style="{{k.moreStyle}}">⋯</button><sc-if value="{{k.hasLk}}"><button class="lkc {{k.lkCls}}" onClick="{{k.onLk}}" aria-label="{{L.links}}">{{k.lk}}</button></sc-if>
+              </div>
+          </div>
+        </sc-for>
+        </div>
+
+        <sc-for list="{{steps}}" as="s">
+          <div style="flex: none; display: flex; flex-direction: column; align-items: center; gap: 2px; margin: 4px 0 6px">
+            <span style="{{s.lineStyle}}"></span>
+            <sc-if value="{{s.hasRel}}">
+              <span style="{{ui.rel}}">{{s.rel}}</span>
+              <span style="{{s.lineStyle}}"></span>
+            </sc-if>
+            <span style="{{s.headStyle}}"></span>
+          </div>
+          <sc-if value="{{s.hasRole}}">
+            <div style="{{ui.roleWrap}}"><span style="{{s.roleDot}}"></span>{{s.role}}</div>
+          </sc-if>
+          <div style="{{s.rowStyle}}">
+            <sc-for list="{{s.items}}" as="k">
+              <div style="display: flex; flex-direction: column; align-items: center; gap: 6px"><sc-if value="{{k.hasCap}}"><span style="{{ui.rel}}">{{k.cap}}</span></sc-if>
+              <div style="{{k.pillStyle}}">
+                <sc-if value="{{k.hasBadge}}"><span style="{{k.badgeStyle}}">{{k.badge}}</span></sc-if>
+                <span style="{{k.dotStyle}}"></span>
+                <button onClick="{{k.onName}}" style="{{k.nameStyle}}">{{k.label}}<span style="{{k.chevStyle}}">{{k.more}}</span></button>
+                <button onClick="{{k.onMore}}" aria-label="{{L.more}}" style="{{k.moreStyle}}">⋯</button><sc-if value="{{k.hasLk}}"><button class="lkc {{k.lkCls}}" onClick="{{k.onLk}}" aria-label="{{L.links}}">{{k.lk}}</button></sc-if>
+              </div></div>
+            </sc-for>
+          </div>
+        </sc-for>
+
+        <sc-if value="{{hasBase}}">
+          <div style="flex: none; display: flex; flex-direction: column; align-items: center; gap: 3px; margin: 10px 0 6px">
+            <span style="{{ui.baseRel}}">{{baseRel}}</span>
+          </div>
+          <div style="{{ui.baseWrap}}">
+            <sc-for list="{{base}}" as="k">
+              <div style="{{k.pillStyle}}">
+                <sc-if value="{{k.hasBadge}}"><span style="{{k.badgeStyle}}">{{k.badge}}</span></sc-if>
+                <span style="{{k.dotStyle}}"></span>
+                <button onClick="{{k.onName}}" style="{{k.nameStyle}}">{{k.label}}<span style="{{k.chevStyle}}">{{k.more}}</span></button>
+                <button onClick="{{k.onMore}}" aria-label="{{L.more}}" style="{{k.moreStyle}}">⋯</button><sc-if value="{{k.hasLk}}"><button class="lkc {{k.lkCls}}" onClick="{{k.onLk}}" aria-label="{{L.links}}">{{k.lk}}</button></sc-if>
+              </div>
+            </sc-for>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{hasSide}}">
+          <div style="flex: none; width: 60%; height: 1px; background: rgba(128,118,108,.35); margin: 8px 0 8px"></div>
+          <div style="flex: none; display: flex; flex-wrap: wrap; gap: 18px 20px; justify-content: center">
+            <sc-for list="{{side}}" as="k">
+              <div style="{{k.pillStyle}}">
+                <sc-if value="{{k.hasBadge}}"><span style="{{k.badgeStyle}}">{{k.badge}}</span></sc-if>
+                <span style="{{k.dotStyle}}"></span>
+                <button onClick="{{k.onName}}" style="{{k.nameStyle}}">{{k.label}}<span style="{{k.chevStyle}}">{{k.more}}</span></button>
+                <button onClick="{{k.onMore}}" aria-label="{{L.more}}" style="{{k.moreStyle}}">⋯</button><sc-if value="{{k.hasLk}}"><button class="lkc {{k.lkCls}}" onClick="{{k.onLk}}" aria-label="{{L.links}}">{{k.lk}}</button></sc-if>
+              </div>
+            </sc-for>
+          </div>
+        </sc-if>
+
+      </div>
+    </div></div>
+
+    <div style="{{ui.zoomBar}}">
+      <button onClick="{{zoomOut}}" aria-label="{{L.zoomOut}}" style="{{ui.zoomBtn}}">−</button>
+      <button id="zl" onClick="{{zoomReset}}" aria-label="{{L.zoomReset}}" style="{{ui.zoomPct}}">{{zoomPct}}</button>
+      <button onClick="{{zoomIn}}" aria-label="{{L.zoomIn}}" style="{{ui.zoomBtn}}">+</button>
+      <button onClick="{{zoomFit}}" aria-label="{{L.zoomFit}}" style="{{ui.zoomBtn}}"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 6V2h4M10 2h4v4M14 10v4h-4M6 14H2v-4"></path></svg></button>
+    </div>
+
+    <sc-if value="{{hasSheet}}">
+      <button onClick="{{closeSheet}}" aria-label="{{L.close}}" style="{{ui.scrim}}"></button>
+      <div class="scroll" style="{{ui.sheet}}">
+        <sc-if value="{{sheet.isNow}}">
+          <span style="{{ui.nowTag}}">{{L.youAreHere}}</span>
+        </sc-if>
+        <h2 style="{{ui.sheetTitle}}">{{sheet.title}}</h2>
+        <sc-for list="{{sheet.paras}}" as="p">
+          <p style="{{ui.para}}">{{p.t}}</p>
+        </sc-for>
+        <sc-if value="{{sheet.hasSym}}">
+          <div style="{{ui.sym}}">{{sheet.sym}}</div>
+        </sc-if>
+        <sc-if value="{{sheet.hasEx}}">
+          <span style="{{ui.meta}}">{{L.example}}</span>
+          <div style="display: flex; flex-direction: column; gap: 10px">
+            <sc-for list="{{sheet.ex}}" as="b">
+              <div style="{{b.style}}">{{b.t}}</div>
+            </sc-for>
+          </div>
+        </sc-if>
+        <sc-if value="{{sheet.hasWas}}">
+          <div style="{{ui.was}}">
+            <span style="{{ui.wasTitle}}">{{L.changed}}</span>
+            <sc-for list="{{sheet.was}}" as="w">
+              <div style="{{ui.wasRow}}"><span style="{{ui.wasKey}}">{{w.k}}</span>{{w.v}}</div>
+            </sc-for>
+          </div>
+        </sc-if>
+        <sc-if value="{{sheet.hasLink}}">
+          <a href="{{sheet.linkUrl}}" target="_blank" rel="noopener" style="{{ui.btn}}; text-decoration: none; text-align: center; display: block">{{sheet.linkT}} ↗</a>
+        </sc-if>
+        <div style="display: flex; gap: 12px; margin-top: 16px">
+          <sc-if value="{{sheet.canIn}}">
+            <button onClick="{{sheet.go}}" style="{{ui.btnPrimary}}">{{sheet.goLabel}}</button>
+          </sc-if>
+          <button onClick="{{closeSheet}}" style="{{ui.btn}}">{{L.close}}</button>
+        </div>
+      </div>
+    </sc-if>
+    <sc-if value="{{hasLkP}}">
+      <button onClick="{{closeLk}}" aria-label="{{L.close}}" style="{{ui.scrim}}"></button>
+      <div class="scroll" style="{{ui.sheet}}">
+        <h2 style="{{ui.sheetTitle}}">{{lkP.title}}</h2>
+        <span style="{{ui.meta}}">{{lkP.sub}}</span>
+        <sc-for list="{{lkP.rows}}" as="r">
+          <button class="frow" onClick="{{r.go}}"><span style="flex: 1; min-width: 0"><b style="font-size: 16px">{{r.name}}</b><br><span style="font-size: 13px; color: #a1a1a6">{{r.where}}</span></span><span class="fst">{{r.tag}}</span></button>
+        </sc-for>
+        <div style="display: flex; gap: 12px; margin-top: 6px"><button onClick="{{closeLk}}" style="{{ui.btn}}">{{L.close}}</button></div>
+      </div>
+    </sc-if>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc">
+const T = window.MAP.tree;
+const LANG = { en: 'en', 'zh-hant': 'zh-Hant', 'zh-tw': 'zh-Hant', 'zh-hk': 'zh-Hant', 'zh-hans': 'zh-Hans', 'zh-cn': 'zh-Hans', zh: 'zh-Hans' }[String(window.MAP.lang || 'en').toLowerCase()] || 'en';
+document.documentElement.lang = LANG;
+const LABELS = {
+  en: {
+    back: 'Back', overview: 'Overview', more: 'Example and notes', links: 'Links', viewing: 'Now viewing',
+    principle: '← applies to all', youAreHere: 'You are here', example: 'Example', changed: 'Changed while we talked',
+    added: 'Added', before: 'Before', now: 'Now', close: 'Close', open: (n) => 'Open (' + n + ')',
+    cmpThem: 'How others do it', cmpUs: 'Ours now', st: { ok: 'works', mid: 'partly', bad: 'gap', unk: 'not checked' },
+    lkTo: 'Links to', lkNone: 'No links yet', lkFrom: 'Linked from',
+    mark: { now: 'Now', chg: 'Just changed', core: 'Key', res: 'Researched', draft: 'Draft', set: 'Decided', later: 'Later' },
+    zoomIn: 'Zoom in', zoomOut: 'Zoom out', zoomReset: 'Back to 100%', zoomFit: 'Fit to screen',
+    sub: 'Click a name to go one level down. Click ⋯ for an example. Drag to move; pinch or Ctrl + scroll to zoom.'
+  },
+  'zh-Hant': {
+    back: '返回上一層', overview: '總覽', more: '例子與說明', links: '連結', viewing: '正在看',
+    principle: '← 每一項都要', youAreHere: '目前在這裡', example: '例子', changed: '討論時改了',
+    added: '新加', before: '原本', now: '現在', close: '收起', open: (n) => '進入看 ' + n + ' 項',
+    cmpThem: '別人怎麼做', cmpUs: '我們現在', st: { ok: '做到', mid: '一半', bad: '有缺口', unk: '未查' },
+    lkTo: '連到這幾格', lkNone: '尚未連到其他格', lkFrom: '哪些格連到它',
+    mark: { now: '目前', chg: '剛改', core: '重點', res: '已研究', draft: '草稿', set: '已定', later: '之後' },
+    zoomIn: '放大', zoomOut: '縮小', zoomReset: '回到 100%', zoomFit: '縮放到剛好',
+    sub: '點名稱進入下一層；點 ⋯ 看例子。拖動可移動；雙指或 Ctrl + 滾輪可縮放。'
+  },
+  'zh-Hans': {
+    back: '返回上一层', overview: '总览', more: '例子与说明', links: '连接', viewing: '正在看',
+    principle: '← 每一项都要', youAreHere: '目前在这里', example: '例子', changed: '讨论时改了',
+    added: '新加', before: '原本', now: '现在', close: '收起', open: (n) => '进入看 ' + n + ' 项',
+    cmpThem: '别人怎么做', cmpUs: '我们现在', st: { ok: '做到', mid: '一半', bad: '有缺口', unk: '未查' },
+    lkTo: '连到这几格', lkNone: '尚未连到其他格', lkFrom: '哪些格连到它',
+    mark: { now: '目前', chg: '刚改', core: '重点', res: '已研究', draft: '草稿', set: '已定', later: '之后' },
+    zoomIn: '放大', zoomOut: '缩小', zoomReset: '回到 100%', zoomFit: '缩放到刚好',
+    sub: '点名称进入下一层；点 ⋯ 看例子。拖动可移动；双指或 Ctrl + 滚轮可缩放。'
+  }
+};
+const L = LABELS[LANG];
+const BADGE = {
+  now: 'background: #1d1d1f; color: #ffffff;', chg: 'background: #ff453a; color: #ffffff;',
+  core: 'background: #c9b6ff; color: #231a3d;', res: 'background: #8fb4ff; color: #0f1d3a;',
+  draft: 'background: #f5c46b; color: #2a1a00;', set: 'background: #30d158; color: #0b2a14;',
+  later: 'background: #8e8e93; color: #1d1d1f;'
+};
+const BADGE_DOT = { now: '#f5f5f7', chg: '#ff453a', core: '#c9b6ff', res: '#8fb4ff', draft: '#f5c46b', set: '#30d158', later: '#8e8e93' };
+const TH = {
+  c: { goal: '#ffffff', core: '#c9b6ff', how: '#8fd6b0', tool: '#b7b2ab' },
+  palette: ['#8fb4ff', '#f5c46b', '#8fd6b0', '#f2a6c4'],
+  hot: '#ff9f0a', lineColor: 'rgba(48,36,26,.42)',
+  pill: 'flex: none; position: relative; display: flex; align-items: center; height: 54px; box-sizing: border-box; border-radius: 999px; padding: 0 8px 0 20px; gap: 12px; width: auto; ',
+  pillBase: 'background: rgba(26,22,20,.62); -webkit-backdrop-filter: blur(22px) saturate(150%); backdrop-filter: blur(22px) saturate(150%); border: 1px solid rgba(255,255,255,.16); box-shadow: inset 0 1px 0 rgba(255,255,255,.22), 0 14px 32px rgba(40,25,10,.26);',
+  pillNow: 'background: #f5f5f7; border: 1px solid #ffffff; box-shadow: 0 14px 34px rgba(40,25,10,.3);',
+  pillCore: 'outline: 2px solid #c9b6ff; outline-offset: 3px;',
+  pillTrail: 'outline: 1.5px dashed rgba(255,255,255,.75); outline-offset: 3px;',
+  dot: 'flex: none; width: 10px; height: 10px; border-radius: 50%; display: inline-block; ',
+  name: 'flex: none; border: 0; background: none; color: #f7f5f2; font-size: 20px; line-height: 1.3; font-weight: 500; padding: 0; text-align: left; cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; ',
+  nameNow: 'color: #1d1d1f;',
+  chev: 'opacity: .45; margin-left: 8px; font-weight: 400',
+  more: 'flex: none; width: 42px; height: 34px; border-radius: 999px; font-size: 18px; line-height: 1; cursor: pointer; padding: 0 0 3px; background: rgba(255,255,255,.12); color: rgba(255,255,255,.88); border: 1px solid rgba(255,255,255,.14); box-shadow: inset 0 1px 0 rgba(255,255,255,.2); ',
+  moreNow: 'background: rgba(0,0,0,.07); color: rgba(0,0,0,.6); border: 0; box-shadow: none;',
+  badge: 'position: absolute; top: -12px; left: 22px; font-size: 13px; line-height: 1.5; font-weight: 600; padding: 1px 10px; border-radius: 999px; white-space: nowrap; ',
+  line: 'width: 2px; height: 7px; border-radius: 1px; ', head: 'width: 0; height: 0; border-left: 6px solid transparent; border-right: 6px solid transparent; border-top: 8px solid; ',
+  root: 'flex: none; display: flex; align-items: center; gap: 14px; width: auto; height: 64px; box-sizing: border-box; border-radius: 999px; padding: 0 10px 0 28px; background: rgba(22,18,16,.7); -webkit-backdrop-filter: blur(26px) saturate(160%); backdrop-filter: blur(26px) saturate(160%); border: 1px solid rgba(255,255,255,.2); box-shadow: inset 0 1.5px 0 rgba(255,255,255,.28), 0 20px 46px rgba(40,25,10,.32); ',
+  rootName: 'flex: none; border: 0; background: none; color: #ffffff; font-size: 25px; line-height: 1.3; font-weight: 600; padding: 0; text-align: left; cursor: pointer; white-space: nowrap; ',
+  crumbOn: 'border-radius: 999px; padding: 9px 18px; font-size: 16px; font-weight: 500; white-space: nowrap; cursor: pointer; background: #f5f5f7; color: #1d1d1f; border: 1px solid #f5f5f7;',
+  crumbOff: 'border-radius: 999px; padding: 9px 18px; font-size: 16px; font-weight: 500; white-space: nowrap; cursor: pointer; background: #232325; color: #d2d2d7; border: 1px solid #3a3a3c;',
+  back: 'width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center; cursor: pointer; background: #232325; color: #f5f5f7; border: 1px solid #3a3a3c; padding: 0; ',
+  exU: 'align-self: flex-end; max-width: 84%; padding: 11px 16px; border-radius: 22px; font-size: 17px; line-height: 1.5; background: #f5f5f7; color: #1d1d1f',
+  exA: 'align-self: flex-start; max-width: 84%; padding: 11px 16px; border-radius: 22px; font-size: 17px; line-height: 1.5; background: rgba(255,255,255,.12); color: #f5f5f7; border: 1px solid rgba(255,255,255,.08)',
+  exN: 'align-self: center; text-align: center; font-size: 15px; line-height: 1.5; color: #a1a1a6; padding: 2px 6px',
+  ui: {
+    page: "width: 1440px; height: 900px; position: relative; overflow: hidden; background: #161617; color: #f5f5f7; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'PingFang TC', 'Noto Sans SC', 'Noto Sans TC', sans-serif; letter-spacing: 0; -webkit-font-smoothing: antialiased; box-sizing: border-box; padding: 22px 56px 26px; display: flex; flex-direction: column; gap: 12px",
+    title: 'margin: 0; font-size: 32px; line-height: 1.2; font-weight: 600; color: #f5f5f7',
+    sub: 'margin: 0; font-size: 18px; line-height: 1.5; color: #a1a1a6',
+    legend: 'display: flex; gap: 22px; font-size: 15px; color: #a1a1a6; padding-bottom: 8px',
+    stage: 'flex: 1; min-height: 0; position: relative; border-radius: 40px; overflow: hidden; background: radial-gradient(70% 70% at 0% 0%, #efe6da 0%, rgba(239,230,218,0) 60%), radial-gradient(60% 70% at 100% 20%, #cbbfb2 0%, rgba(203,191,178,0) 65%), radial-gradient(60% 60% at 35% 100%, #bab3c6 0%, rgba(186,179,198,0) 70%), linear-gradient(160deg, #e2d7ca 0%, #a8988a 55%, #d8cdc1 100%)',
+    roleWrap: 'display: inline-flex; align-items: center; gap: 8px; font-size: 15px; font-weight: 500; color: rgba(255,255,255,.92); background: rgba(28,24,22,.5); -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); border: 1px solid rgba(255,255,255,.14); padding: 5px 14px 5px 12px; border-radius: 999px; margin-bottom: 8px; flex: none',
+    rel: 'font-size: 16px; line-height: 1.4; color: rgba(40,30,22,.78); padding: 2px 0; font-weight: 500',
+    baseRel: 'font-size: 16px; line-height: 1.4; font-weight: 500; color: rgba(40,30,22,.78)',
+    baseWrap: 'flex: none; width: 100%; max-width: 1100px; box-sizing: border-box; display: flex; flex-wrap: wrap; justify-content: center; gap: 24px; padding: 10px 24px; border-radius: 28px; background: rgba(40,30,22,.16); border: 1px solid rgba(255,255,255,.35); box-shadow: inset 0 1px 0 rgba(255,255,255,.4)',
+    zoomBar: 'position: absolute; right: 22px; bottom: 22px; display: flex; align-items: center; gap: 4px; padding: 4px; border-radius: 999px; background: rgba(26,22,20,.62); -webkit-backdrop-filter: blur(22px); backdrop-filter: blur(22px); border: 1px solid rgba(255,255,255,.16); box-shadow: 0 10px 26px rgba(40,25,10,.25); z-index: 2',
+    zoomBtn: 'width: 38px; height: 38px; border-radius: 50%; border: 0; background: none; color: #f5f5f7; font-size: 20px; line-height: 1; display: grid; place-items: center; cursor: pointer; padding: 0',
+    zoomPct: 'min-width: 62px; height: 38px; border-radius: 999px; border: 0; background: rgba(255,255,255,.1); color: #f5f5f7; font-size: 14px; font-weight: 600; cursor: pointer; padding: 0 10px; font-variant-numeric: tabular-nums',
+    scrim: 'position: absolute; inset: 0; border: 0; background: rgba(0,0,0,.3); cursor: pointer; padding: 0',
+    sheet: 'position: absolute; top: 24px; right: 24px; max-height: calc(100% - 48px); width: max-content; min-width: 340px; max-width: 520px; overflow-y: auto; border-radius: 34px; padding: 32px 34px 30px; box-sizing: border-box; background: rgba(30,28,28,.8); -webkit-backdrop-filter: blur(30px) saturate(160%); backdrop-filter: blur(30px) saturate(160%); border: 1px solid rgba(255,255,255,.14); box-shadow: inset 0 1px 0 rgba(255,255,255,.2), 0 30px 60px rgba(0,0,0,.45); display: flex; flex-direction: column; gap: 14px',
+    nowTag: 'align-self: flex-start; font-size: 14px; font-weight: 500; color: #1d1d1f; background: #ffffff; border-radius: 999px; padding: 3px 12px',
+    sheetTitle: 'margin: 0; font-size: 32px; line-height: 1.3; font-weight: 600; color: #f5f5f7',
+    para: 'margin: 0; font-size: 18px; line-height: 1.65; color: rgba(245,245,247,.92)',
+    sym: 'font-size: 17px; line-height: 1.55; font-weight: 500; color: #f5f5f7; text-align: center; padding: 16px 18px; border-radius: 22px; background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.1)',
+    meta: 'font-size: 15px; font-weight: 500; color: #a1a1a6; margin-top: 6px',
+    was: 'margin-top: 10px; padding: 16px 18px; border-radius: 22px; background: rgba(255,105,97,.12); border: 1px solid rgba(255,105,97,.38); display: flex; flex-direction: column; gap: 6px',
+    wasTitle: 'font-size: 14px; font-weight: 600; color: #ff8a80',
+    wasRow: 'font-size: 17px; line-height: 1.55; color: #f5f5f7',
+    wasKey: 'display: inline-block; min-width: 4.4em; color: #a1a1a6',
+    btnPrimary: 'flex: 1; border: 0; border-radius: 999px; padding: 15px 18px; font-size: 17px; font-weight: 600; background: #f5f5f7; color: #1d1d1f; cursor: pointer',
+    btn: 'flex: 1; border: 1px solid rgba(255,255,255,.16); border-radius: 999px; padding: 15px 18px; font-size: 17px; font-weight: 500; background: rgba(255,255,255,.1); color: #f5f5f7; cursor: pointer'
+  }
+};
+const has = (n, m) => n.mark === m || (n.kids || []).some((k) => has(k, m));
+const LINKS = (() => { const out = []; const walk = (n, p) => { if (n.links) out.push({ from: p, to: n.links }); (n.kids || []).forEach((k, i) => walk(k, [...p, i])); }; walk(T, []); return out; })();
+const LEGEND = (() => { const used = new Set(); const walk = (n) => { if (n.mark) used.add(n.mark); (n.kids || []).forEach(walk); }; walk(T); return Object.keys(L.mark).filter((m) => used.has(m)).map((m) => ({ t: L.mark[m], dot: 'width: 10px; height: 10px; border-radius: 50%; background: ' + BADGE_DOT[m] })); })();
+const pkey = (p) => p.join('.');
+const nodeAtP = (p) => p.reduce((n, i) => n && n.kids && n.kids[i], T);
+// Fit the fixed 1440x900 canvas to any window.
+const fit = () => { const k = Math.min(innerWidth / 1440, innerHeight / 900); document.querySelector('x-dc').style.transform = 'translate(' + (innerWidth - 1440 * k) / 2 + 'px, ' + (innerHeight - 900 * k) / 2 + 'px) scale(' + k + ')'; };
+let FIT_K = 1;
+const fit0 = fit;
+const fitAll = () => { FIT_K = Math.min(innerWidth / 1440, innerHeight / 900); fit0(); };
+addEventListener('resize', fitAll); fitAll();
+// Board view: drag to pan, pinch / Ctrl + wheel to zoom. Kept across live reloads.
+let VIEW = { x: 0, y: 0, z: 1 };
+try { VIEW = Object.assign(VIEW, JSON.parse(sessionStorage.getItem('lmView') || '{}')); } catch (e) {}
+let LASTP = null;
+const saveView = () => { try { sessionStorage.setItem('lmView', JSON.stringify(VIEW)); } catch (e) {} };
+const vpCss = () => 'position: absolute; inset: 0; overflow: hidden; touch-action: none; user-select: none; -webkit-user-select: none; cursor: grab; background-image: radial-gradient(rgba(40,30,22,.22) 1.2px, transparent 1.4px); background-size: ' + 26 * VIEW.z + 'px ' + 26 * VIEW.z + 'px; background-position: ' + VIEW.x + 'px ' + VIEW.y + 'px';
+const boardCss = () => 'position: absolute; left: 0; top: 0; width: 100%; transform-origin: 0 0; transform: translate(' + VIEW.x + 'px, ' + VIEW.y + 'px) scale(' + VIEW.z + ')';
+const pct = () => Math.round(VIEW.z * 100) + '%';
+const applyView = () => {
+  const vp = document.getElementById('vp'), bd = document.getElementById('board'), zl = document.getElementById('zl');
+  if (vp) vp.style.cssText = vpCss() + (DRAG && DRAG.moved ? '; cursor: grabbing' : '');
+  if (bd) bd.style.cssText = boardCss();
+  if (zl) zl.textContent = pct();
+  saveView();
+};
+const zoomAt = (px, py, f) => {
+  const z2 = Math.min(2.5, Math.max(0.3, VIEW.z * f));
+  VIEW.x = px - (px - VIEW.x) * z2 / VIEW.z; VIEW.y = py - (py - VIEW.y) * z2 / VIEW.z; VIEW.z = z2; applyView();
+};
+const zoomMid = (f) => { const vp = document.getElementById('vp'); if (vp) zoomAt(vp.clientWidth / 2, vp.clientHeight / 2, f); };
+const zoomFit = () => {
+  const vp = document.getElementById('vp'), col = document.getElementById('col'); if (!vp || !col) return;
+  const W = vp.clientWidth, H = vp.clientHeight, cw = Math.max(col.scrollWidth, W), ch = col.scrollHeight;
+  const z = Math.min(1, Math.max(0.3, Math.min(W / cw, H / ch)));
+  VIEW = { x: (W - W * z) / 2, y: Math.max(0, (H - ch * z) / 2), z }; applyView();
+};
+let DRAG = null;
+const host = document.querySelector('x-dc');
+host.addEventListener('pointerdown', (e) => {
+  if (e.button !== 0 || !e.target.closest('#vp')) return;
+  DRAG = { sx: e.clientX, sy: e.clientY, x: VIEW.x, y: VIEW.y, moved: false };
+});
+addEventListener('pointermove', (e) => {
+  if (!DRAG) return;
+  const dx = (e.clientX - DRAG.sx) / FIT_K, dy = (e.clientY - DRAG.sy) / FIT_K;
+  if (!DRAG.moved && Math.hypot(dx, dy) < 4) return;
+  DRAG.moved = true; VIEW.x = DRAG.x + dx; VIEW.y = DRAG.y + dy; applyView();
+});
+addEventListener('pointerup', () => { if (!DRAG) return; const m = DRAG.moved; DRAG = null; applyView(); if (m) host.dataset.dragged = '1'; });
+// A drag that ends on a node must not also open it.
+host.addEventListener('click', (e) => { if (host.dataset.dragged) { delete host.dataset.dragged; e.stopPropagation(); e.preventDefault(); } }, true);
+host.addEventListener('wheel', (e) => {
+  const vp = e.target.closest('#vp'); if (!vp) return;
+  e.preventDefault();
+  if (e.ctrlKey || e.metaKey) { const r = vp.getBoundingClientRect(); zoomAt((e.clientX - r.left) / FIT_K, (e.clientY - r.top) / FIT_K, Math.exp(-Math.max(-25, Math.min(25, e.deltaY)) * 0.01)); }
+  else { VIEW.x -= e.deltaX / FIT_K; VIEW.y -= e.deltaY / FIT_K; applyView(); }
+}, { passive: false });
+class Component extends DCLogic {
+  renderVals() {
+    const st = this.state || {};
+    const path = (st.path || []).filter((_, j, a) => nodeAtP(a.slice(0, j + 1)));
+    const set = (o) => this.setState(o);
+    const n = nodeAtP(path);
+    if (LASTP !== null && pkey(path) !== LASTP) { VIEW = { x: 0, y: 0, z: 1 }; saveView(); }
+    LASTP = pkey(path);
+    const chain = [T];
+    path.reduce((x, i) => { const k = x.kids[i]; chain.push(k); return k; }, T);
+    const crumbs = chain.map((c, i) => ({
+      label: i ? c.t : L.overview,
+      go: () => set({ path: path.slice(0, i), sheet: null }),
+      style: i === chain.length - 1 ? TH.crumbOn : TH.crumbOff
+    }));
+    const kids = n.kids || [];
+    const flow = n.flow || (kids.length ? [{ items: kids.map((_, i) => i) }] : []);
+    const stepColor = (si) => TH.palette[si % TH.palette.length];
+    const colorOf = (i, si) => {
+      if (kids[i].mark === 'core') return TH.c.core;
+      if (!path.length) return TH.palette[i % TH.palette.length];
+      return si < 0 ? TH.c.tool : stepColor(si);
+    };
+    const mk = (i, color) => {
+      const k = kids[i];
+      const np = [...path, i];
+      const now = k.mark === 'now', core = k.mark === 'core';
+      const trail = !now && has(k, 'now');
+      const drill = k.kids || k.cmp;
+      const fwd = k.links;
+      const rev = LINKS.filter((x) => x.to.some((t) => pkey(t) === pkey(np))).map((x) => x.from);
+      const list = fwd ? fwd : rev;
+      return {
+        label: k.t, more: k.goto ? '↗' : drill ? '›' : '', hasCap: !!k.cap, cap: k.cap || '',
+        hasBadge: !!BADGE[k.mark], badge: L.mark[k.mark] || '', badgeStyle: TH.badge + (BADGE[k.mark] || ''),
+        pillStyle: TH.pill + (now ? TH.pillNow : TH.pillBase) + (core ? TH.pillCore : '') + (trail ? TH.pillTrail : ''),
+        dotStyle: TH.dot + 'background: ' + color + ';',
+        nameStyle: TH.name + (now ? TH.nameNow : ''),
+        chevStyle: TH.chev,
+        moreStyle: TH.more + (now ? TH.moreNow : ''),
+        onName: k.goto ? () => set({ path: k.goto, sheet: null }) : drill ? () => set({ path: np, sheet: null }) : () => set({ sheet: { i } }),
+        onMore: () => set({ sheet: { i } }),
+        hasLk: fwd !== undefined || rev.length > 0, lk: String(list.length), lkCls: list.length ? '' : 'zero',
+        onLk: () => set({ lk: { from: np, list, fwd: !!fwd }, sheet: null })
+      };
+    };
+    const steps = flow.map((s, si) => {
+      const hot = s.items.some((i) => has(kids[i], 'now'));
+      return {
+        rel: s.rel || '', hasRel: !!s.rel, role: s.role || '', hasRole: !!s.role,
+        roleDot: TH.dot + 'background: ' + colorOf(s.items[0], si) + ';',
+        lineStyle: TH.line + 'background: ' + (hot ? TH.hot : TH.lineColor) + ';',
+        headStyle: TH.head + 'border-top-color: ' + (hot ? TH.hot : TH.lineColor) + ';',
+        rowStyle: 'flex: none; display: flex; flex-wrap: wrap; gap: 18px 20px; justify-content: center; max-width: 1100px',
+        items: s.items.map((i) => mk(i, colorOf(i, si)))
+      };
+    });
+    const side = n.side ? n.side.items.map((i) => mk(i, TH.c.tool)) : [];
+    const base = n.base ? n.base.items.map((i) => mk(i, TH.c.tool)) : [];
+    let sheet = { hasLink: false, linkUrl: '', linkT: '', isNow: false, title: '', paras: [], hasSym: false, sym: '', hasEx: false, ex: [], hasWas: false, was: [], canIn: false, go: null, goLabel: '' };
+    const sel = st.sheet;
+    if (sel && (sel.self || kids[sel.i])) {
+      const s = sel.self ? n : kids[sel.i];
+      const was = !s.was ? [] : s.was.added !== undefined ? [{ k: L.added, v: s.was.added }] : [{ k: L.before, v: s.was.from || '' }, { k: L.now, v: s.was.to || '' }];
+      sheet = {
+        hasLink: !!s.link, linkUrl: s.link ? s.link.url : '', linkT: s.link ? s.link.t : '',
+        isNow: s.mark === 'now', title: s.t,
+        paras: (s.p || []).map((t) => ({ t })),
+        hasSym: !!s.sym, sym: s.sym || '',
+        hasEx: !!(s.ex && s.ex.length), ex: (s.ex || []).map(([w, t]) => ({ t, style: w === 'u' ? TH.exU : w === 'a' ? TH.exA : TH.exN })),
+        hasWas: was.length > 0, was,
+        canIn: !sel.self && !!s.kids,
+        go: () => set({ path: [...path, sel.i], sheet: null }),
+        goLabel: s.kids ? L.open(s.kids.length) : ''
+      };
+    }
+    return {
+      ui: TH.ui, L,
+      vpStyle: vpCss(), boardStyle: boardCss(), zoomPct: pct(),
+      zoomIn: () => zoomMid(1.2), zoomOut: () => zoomMid(1 / 1.2), zoomFit,
+      zoomReset: () => { VIEW = { x: 0, y: 0, z: 1 }; applyView(); },
+      legend: LEGEND, mapTitle: window.MAP.title || T.t, mapSub: window.MAP.sub || L.sub,
+      crumbs,
+      back: () => { if (path.length) set({ path: path.slice(0, -1), sheet: null }); },
+      backStyle: TH.back + (path.length ? '' : 'opacity: .35;'),
+      hasRootRole: path.length > 0,
+      rootRoleDot: TH.dot + 'background: ' + TH.c.goal + ';',
+      rootLabel: n.t,
+      rootStyle: TH.root + (n.mark === 'now' ? TH.pillNow : ''),
+      rootNameStyle: TH.rootName + (n.mark === 'now' ? TH.nameNow : ''),
+      rootMore: () => set({ sheet: { self: true } }),
+      rootMoreStyle: TH.more + (n.mark === 'now' ? TH.moreNow : ''),
+      hasCmp: !!n.cmp, cmp: n.cmp ? { them: n.cmp.them, us: n.cmp.us, st: n.cmp.st, stT: L.st[n.cmp.st] || '' } : { them: '', us: '', st: '', stT: '' },
+      prin: n.principle !== undefined ? [mk(n.principle, TH.c.core)] : [],
+      steps, hasBase: base.length > 0, base, hasSide: side.length > 0, side, baseRel: n.base ? '↑ ' + (n.base.rel || '') : '',
+      hasSheet: !!sheet.title && !st.lk, sheet,
+      hasLkP: !!st.lk, closeLk: () => set({ lk: null }),
+      lkP: (() => {
+        const K = st.lk; if (!K) return { title: '', sub: '', rows: [] };
+        const src = nodeAtP(K.from);
+        const names = (p) => p.reduce((acc, i) => { acc.n = acc.n && acc.n.kids && acc.n.kids[i]; acc.a.push(acc.n ? acc.n.t : '?'); return acc; }, { n: T, a: [] }).a;
+        return { title: src ? src.t : '', sub: K.fwd ? (K.list.length ? L.lkTo : L.lkNone) : L.lkFrom,
+          rows: K.list.map((p) => { const t = nodeAtP(p) || { t: '?' }; const drill = t.kids || t.cmp;
+            return { name: t.t, where: names(p).slice(0, -1).join(' › '), tag: L.mark[t.mark] || '',
+              go: () => set(drill ? { path: p, lk: null, sheet: null } : { path: p.slice(0, -1), sheet: { i: p[p.length - 1] }, lk: null }) }; }) };
+      })(),
+      closeSheet: () => set({ sheet: null })
+    };
+  }
+}
+</script>
+</body>
+</html>
